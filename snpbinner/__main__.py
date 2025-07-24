@@ -1,6 +1,6 @@
 '''Sets up the main argparser and imports and sets up scripts in the program.'''
 
-import __init__ as snpbinner
+from . import __init__ as snpbinner
 import sys
 import argparse
 

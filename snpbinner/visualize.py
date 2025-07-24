@@ -7,6 +7,7 @@ from collections import OrderedDict
 import math
 import numpy as np
 from PIL import Image,ImageDraw, ImageFont
+from functools import reduce
 
 def visualize(snp_path,crosspoint_path,binned_path,out_folder):
     if not os.path.exists(out_folder):
