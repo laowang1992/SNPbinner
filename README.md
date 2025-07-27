@@ -1,5 +1,5 @@
 # SNPbinner
-SNPbinner is a Python 2.7 package and command line utility for the generation of genotype binmaps based on SNP genotype data across populations of recombinant inbred lines (RILs).  Analysis using SNPbinner is performed in three parts: `crosspoints`, `bins`, and `visualize`.
+SNPbinner is a ~~Python 2.7~~ Python 3 package and command line utility for the generation of genotype binmaps based on SNP genotype data across populations of recombinant inbred lines (RILs).  Analysis using SNPbinner is performed in three parts: `crosspoints`, `bins`, and `visualize`.
 
 ## Citing
 SNPbinner can be cited as:
@@ -14,7 +14,7 @@ Gonda, I., H. Ashrafi, D.A. Lyon, S.R. Strickler, A.M. Hulse-Kemp, Q. Ma, H. Sun
     [visualize](#visualize)  
 
 # Installation and Usage
-_**SNPbinner requires Python 2.7**. Python 3 is currently not supported.   
+_~~**SNPbinner requires Python 2.7**.~~ Python 3 is currently ~~not~~ supported.   
 The only non‑standard dependency of SNPbinner is [Pillow](https://github.com/python-pillow/Pillow), a PIL fork._
 
 To install the SNPbinner utility, download or clone the repository and run 

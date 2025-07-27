@@ -3,89 +3,73 @@ from math import log
 import warnings
 import os
 
-def _crosspoints_batcher(input_path,output_path,predicted_homogeneity,predicted_cross_count,chrom_len,min_state_length=None,min_state_ratio=None):
+def _crosspoints_batcher(input_path, output_path, predicted_homogeneity, predicted_cross_count, chrom_len, min_state_length=None, min_state_ratio=None):
     input_list = input_path
     if len(input_list) == 1:
-        crosspoints(input_path[0],output_path,predicted_homogeneity,predicted_cross_count,chrom_len,min_state_length,min_state_ratio)
+        crosspoints(input_path[0], output_path, predicted_homogeneity, predicted_cross_count, chrom_len, min_state_length, min_state_ratio)
     else:
         output_folder = output_path
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         for file in input_list:
-            print("Determining crosspoints for: "+file)
-            out_file = os.path.join(output_folder,os.path.basename(file)+".crosp.csv")
+            print("Determining crosspoints for: " + file)
+            out_file = os.path.join(output_folder, os.path.basename(file) + ".crosp.csv")
             try:
-
-                crosspoints(file,out_file,predicted_homogeneity,predicted_cross_count,0,min_state_length,min_state_ratio)
+                crosspoints(file, out_file, predicted_homogeneity, predicted_cross_count, 0, min_state_length, min_state_ratio)
             except Exception as detail:
                 print("FAILED! Details:")
                 print(detail)
 
-def crosspoints(input_path,output_path,predicted_homogeneity,predicted_cross_count,chrom_len,min_state_length=None,min_state_ratio=None):
-    '''Runs the module'''
+def crosspoints(input_path, output_path, predicted_homogeneity, predicted_cross_count, chrom_len, min_state_length=None, min_state_ratio=None):
+    individual_count, snp_count, auto_chrom_len = _get_file_stats(input_path)
+    if chrom_len == 0:
+        chrom_len = auto_chrom_len
 
-    #get file statistics
-    individual_count,snp_count,auto_chrom_len = _get_file_stats(input_path)
-    if chrom_len==0: 
-        chrom_len=auto_chrom_len
+    if min_state_ratio is not None:
+        min_state_length = chrom_len * float(min_state_ratio)
 
-    #determine the min distance between two crossover points
-    if min_state_ratio!=None:
-        min_state_length = chrom_len*float(min_state_ratio)
-
-    # clear output file
-    with open(output_path,"w") as outfile:
+    with open(output_path, "w") as outfile:
         pass
 
-    # contruct the Hidden Markov Models (_HMM) used to predict states
-    crosspoint_probability = predicted_cross_count/float(chrom_len)
-    intra_p = predicted_homogeneity # emmision probability of the genotype corresponding to the state
-    inter_p = 1-intra_p                   # emmision probability of the opposite genotype
+    crosspoint_probability = predicted_cross_count / float(chrom_len)
+    intra_p = predicted_homogeneity
+    inter_p = 1 - intra_p
 
-    # create a _HMM that registers heterogeneous regions
-    error = crosspoint_probability/2.0  # transition probability for other 2 states
-    crrct = 1-(error*2)                 # transition probability for same state
+    error = crosspoint_probability / 2.0
+    crrct = 1 - (error * 2)
     hmm_all = _HMM(
-        states      = ["a", "b", "h"],
-        priors      = [0.3, 0.3, 0.3],
-        transition = [[crrct, error, error],
-                      [error, crrct, error],
-                      [error, error, crrct]],
-        observable  = ["a", "b", "h"],
-        emission   = [[intra_p, inter_p, inter_p],   #Note that the probabilities dont sum to one in a&b emmision, as non-state SNPs are simply considered errors
-                      [inter_p, intra_p, inter_p],
-                      [0.5,     0.5,     inter_p*2]] #this configuration for h emmision has good performance, but does not have statistical meaning.
-        )
+        states=["a", "b", "h"],
+        priors=[0.3, 0.3, 0.3],
+        transition=[[crrct, error, error],
+                    [error, crrct, error],
+                    [error, error, crrct]],
+        observable=["a", "b", "h"],
+        emission=[[intra_p, inter_p, inter_p],
+                  [inter_p, intra_p, inter_p],
+                  [0.5, 0.5, inter_p * 2]]
+    )
 
-    # create a _HMM that does not register heterogeneous regions, this is used to split hetero regions more appropriately when it is required
     error = crosspoint_probability
-    crrct = 1-error
+    crrct = 1 - error
     hmm_nohet = _HMM(
-        states      = ["a", "b"],
-        priors      = [0.5, 0.5],
-        transition = [[crrct, error],
-                      [error, crrct]],
-        observable  = ["a", "b"],
-        emission   = [[intra_p, inter_p],
-                      [inter_p, intra_p]] 
-        )
+        states=["a", "b"],
+        priors=[0.5, 0.5],
+        transition=[[crrct, error],
+                    [error, crrct]],
+        observable=["a", "b"],
+        emission=[[intra_p, inter_p],
+                  [inter_p, intra_p]]
+    )
 
-    #Runs the crosspoint identification on the input file using the created _HMMs and writes them to a file
-    for i in range(0,individual_count):
-        snplist,name = _read_column(input_path,i)
-        # get the crosspoints
-        print (name)
+    for i in range(0, individual_count):
+        snplist, name = _read_column(input_path, i)
+        print(name)
         if len(snplist) < 1:
             warnings.warn("HMM cannot be used on an empty data set, skippinng this line.", UserWarning, stacklevel=2)
             continue
-        cp = _find_crosspoints(
-            snplist          = snplist,
-            min_state_length = min_state_length,
-            chrom_length     = chrom_len,
-            hmm_nohet         = hmm_nohet,
-            hmm_all          = hmm_all)
-        with open(output_path,"a") as outfile:
-            outfile.write(",".join([name]+[str(n) for n in cp])+",\n")
+        cp = _find_crosspoints(snplist, min_state_length, chrom_len, hmm_nohet, hmm_all)
+        with open(output_path, "a") as outfile:
+            outfile.write(",".join([name] + [str(n) for n in cp]) + ",\n")
 
 def _find_crosspoints(snplist, min_state_length, chrom_length, hmm_nohet, hmm_all):
     '''Identifies crosspoints using two _HMMs.'''
@@ -319,7 +303,7 @@ def _read_column(filename, col, filter=True):
 def _get_file_stats(filename):
     '''Counts coulumns[-1 header](individual_count), rows[-1 header](snp_count), and returns the last row header (last_index) from a TSV.'''
     individual_count = 0
-    print filename
+    print(filename)
     with open(filename, "r") as f:
         title_line = ""
         while title_line.strip()=="" or title_line.startswith("#"):

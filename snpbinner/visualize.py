@@ -1,6 +1,7 @@
 '''This script provides a way to visualize the results and input to the `bins` and `crosspoints` scripts. It can accept three filetypes (SNP input TSV, crosspoint script output CSV, and bin script output CSV). It then parses the files and groups the data by RIL, creating an image for each. In each colored row of the resulting images, regions are colored red, green, or blue, for genotype a, heterozygous, or genotype b, respecively. The binamp is represented in gray with adjacent bins alternating dark and light. The script can accept any combination or number of files for each of the different types.'''
 #Comments pending.
 
+from functools import reduce
 import sys
 import os
 from collections import OrderedDict
@@ -72,7 +73,7 @@ def visualize(snp_path,crosspoint_path,binned_path,out_folder):
                             only_cp+=all_bins[i-1:i+1]
                     only_cp.append(all_bins[-1])
                     binned_data[name]["indvs"][indv] = {"list":only_cp}
-    column_size = (maximum_index)/float(columns-1)
+    column_size = (maximum_index)//float(columns-1)
     if auto_set_columns:
         if len(binned_data)>0:
             min_size = min(binned_data[name]["min_bin_size"] for name in binned_data)
@@ -94,7 +95,7 @@ def visualize(snp_path,crosspoint_path,binned_path,out_folder):
                     snp_data[name][indv]["dict"][col].append(snp[1])
             snp_data[name][indv]["col_vals"] = [None]*columns
             for col in snp_data[name][indv]["dict"]:
-                snp_data[name][indv]["col_vals"][col] = sum(genotype_values[x] for x in snp_data[name][indv]["dict"][col])/float(len(snp_data[name][indv]["dict"][col]))
+                snp_data[name][indv]["col_vals"][col] = sum(genotype_values[x] for x in snp_data[name][indv]["dict"][col])//float(len(snp_data[name][indv]["dict"][col]))
     for cp_data_set in (crosspoint_data,binned_data):
         for name in cp_data_set:
             for indv in cp_data_set[name]["indvs"]:
@@ -104,11 +105,11 @@ def visualize(snp_path,crosspoint_path,binned_path,out_folder):
                 for i in range(2,len(cp_data_set[name]["indvs"][indv]["list"]),2):
                     genotype_list.append(cp_data_set[name]["indvs"][indv]["list"][i-1])
                     if cp_data_set[name]["indvs"][indv]["list"][i]!=cp_data_set[name]["indvs"][indv]["list"][i-2]:
-                        collapsed_cp_cols.append(sum(genotype_values[x] for x in genotype_list)/float(len(genotype_list)))
+                        collapsed_cp_cols.append(sum(genotype_values[x] for x in genotype_list)//float(len(genotype_list)))
                         collapsed_cp_cols.append(cp_data_set[name]["indvs"][indv]["list"][i])
                         genotype_list = []
                 if len(genotype_list)>0:
-                    collapsed_cp_cols.append(sum(genotype_values[x] for x in genotype_list)/float(len(genotype_list)))
+                    collapsed_cp_cols.append(sum(genotype_values[x] for x in genotype_list)//float(len(genotype_list)))
                     collapsed_cp_cols.append(cp_data_set[name]["indvs"][indv]["list"][-1])
                 cp_data_set[name]["indvs"][indv]["col_vals"] = [None]*columns
                 for i in range(2,len(collapsed_cp_cols),2):
@@ -158,7 +159,7 @@ def visualize(snp_path,crosspoint_path,binned_path,out_folder):
     out_folder = out_folder.rstrip("/")+"/   "
     for builder in image_builders:
         builder.save(out_folder+builder.name+".png")
-        
+
 
 
 
@@ -217,7 +218,8 @@ class _Indvidual_image_builder(object):
                 line[:] = self.row_list[row_name]
         pil_im = Image.frombuffer('RGBA',(w,h),img,'raw','RGBA',0,1)
         draw = ImageDraw.Draw(pil_im)
-        font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "package_data/Tuffy.ttf"),size=14)
+        #font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "package_data/Tuffy.ttf"),size=14)
+        font = ImageFont.load_default()
         for rn_i,row_name in enumerate(self.row_list):
             binned_label_middle = (rn_i+0.5)*section_height
             lw,lh = font.getsize(row_name)
